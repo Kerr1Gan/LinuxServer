@@ -25,5 +25,6 @@ C_DEPS :=
 SUBDIRS := \
 src/Server \
 src/SocketUtils \
+src/Thread \
 src \
 

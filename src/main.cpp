@@ -14,7 +14,8 @@ using namespace std;
 
 
 int count=0;
-
+pthread_mutex_t mutex;
+pthread_cond_t cond;
 void *threadHello(void *arg)
 {
 	printf("Hello Linux Thread!!\n");
@@ -22,10 +23,14 @@ void *threadHello(void *arg)
 
 	int i=*((int*)arg);
 
+
 	for(int i=0;i<10000;i++)
 	{
+		pthread_mutex_lock(&mutex);
+		pthread_cond_wait(&cond,&mutex);
 		count++;
 		cout<<count<<endl;
+		pthread_mutex_unlock(&mutex);
 	}
 
 	return arg;
@@ -39,6 +44,9 @@ int main() {
 	int arg=10;
 
 	int *thread_ret=NULL;
+
+	pthread_mutex_init(&mutex,NULL);
+//	pthread_cond_init(&cond,NULL,NULL);
 
 	ret=pthread_create(&thread,NULL,threadHello,&arg);
 
@@ -56,10 +64,14 @@ int main() {
 
 //	cout<<"thread_ret ="<<*thread_ret<<"."<<endl;
 
+
 	for(int i=0;i<10000;i++)
 	{
+		pthread_mutex_lock(&mutex);
 		count++;
 		cout<<count<<endl;
+		 pthread_cond_signal(&cond);
+		pthread_mutex_unlock(&mutex);
 	}
 
 	cout<<"end"<<endl;

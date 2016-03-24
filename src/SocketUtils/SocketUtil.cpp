@@ -97,3 +97,54 @@ void SocketUtil::intToBytes(int integer,char result[5])
 		result[3]=(integer>>24)&0xff;
 
 }
+
+sockaddr_in SocketUtil::getLocalHost()
+{
+	sockaddr_in address;
+	memset(&address, 0, sizeof(address));
+	address.sin_family = AF_INET;
+	address.sin_addr.s_addr = htonl(INADDR_ANY);
+	return address;
+}
+
+char* SocketUtil::getClientIPandPort(int fileDescriptor,int &port)
+{
+	socklen_t len=sizeof(sockaddr_in	);
+	sockaddr_in addr;
+
+	char *ip=NULL;
+	port=0;
+
+	if(getpeername(fileDescriptor,(sockaddr*)&addr,&len)==0)
+	{
+		ip=inet_ntoa(addr.sin_addr);
+		port=ntohs(len);
+	}
+	return ip;
+}
+bool SocketUtil::isIPValid(char *ip)
+{
+	   if (ip == NULL || *ip == '\0')
+	      return 1;
+
+	   union
+	   {
+	      struct sockaddr addr;
+	      struct sockaddr_in6 addr6;
+	      struct sockaddr_in addr4;
+	   } addr;
+
+	memset(&addr,0,sizeof(addr));
+
+	if (inet_pton(AF_INET, NULL, &addr.addr4.sin_addr) <= 0) {
+		printf("inet_pton error for \n");
+		return false;
+	}
+	else if(inet_pton (AF_INET6, ip, &addr.addr6.sin6_addr)<=0){
+		printf("inet_pton error for \n");
+		return false;
+	}
+
+	return true;
+}
+

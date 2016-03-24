@@ -28,7 +28,6 @@ public:
 	static int getNetWorkStreamLength(char *netWorkStream);
 
 	static int getNetWorkStreamLengthWidthHead(char *netWorkStream);
-
 };
 
 #endif /* SRC_SOCKETUTILS_SOCKETPROTOCOL_H_ */

@@ -4,14 +4,20 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
+../src/SocketUtils/ServerSocket.cpp \
+../src/SocketUtils/Socket.cpp \
 ../src/SocketUtils/SocketProtocol.cpp \
 ../src/SocketUtils/SocketUtil.cpp 
 
 OBJS += \
+./src/SocketUtils/ServerSocket.o \
+./src/SocketUtils/Socket.o \
 ./src/SocketUtils/SocketProtocol.o \
 ./src/SocketUtils/SocketUtil.o 
 
 CPP_DEPS += \
+./src/SocketUtils/ServerSocket.d \
+./src/SocketUtils/Socket.d \
 ./src/SocketUtils/SocketProtocol.d \
 ./src/SocketUtils/SocketUtil.d 
 

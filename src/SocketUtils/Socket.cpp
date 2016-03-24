@@ -14,6 +14,11 @@ Socket::Socket() {
 	_port=0;
 }
 
+Socket::Socket(int sock):Socket()
+{
+	_fileDescriptor=sock;
+}
+
 Socket::~Socket() {
 	// TODO Auto-generated destructor stub
 	if(_fileDescriptor!=0)

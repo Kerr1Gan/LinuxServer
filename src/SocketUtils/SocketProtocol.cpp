@@ -17,21 +17,21 @@ SocketProtocol::~SocketProtocol() {
 }
 
 /*
- * 		must be release char ptr.
+ * 		must be release char ptr.not contains \0
 */
 char* SocketProtocol::transferLocalStreamToNetWorkStream(char* localStream,int &length)
 {
 	length=strlen(localStream);
 
 	char bytes[5];
-
+	memset(bytes,0,5);
 	SocketUtil::intToBytes(length,bytes);
 
-	string head;
+//	string head;
+//
+//	head.assign((char*)bytes,0,4);
 
-	head.assign((char*)bytes,0,4);
-
-	char *result=new char[length+5];
+	char *result=new char[length+4];
 
 	result[0]=bytes[0];
 	result[1]=bytes[1];
@@ -44,7 +44,6 @@ char* SocketProtocol::transferLocalStreamToNetWorkStream(char* localStream,int &
 	}
 
 	length+=4;
-	result[length]='\0';
 	return result;
 }
 

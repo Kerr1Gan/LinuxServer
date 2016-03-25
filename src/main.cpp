@@ -12,14 +12,15 @@ using namespace std;
 #include <pthread.h>
 #include <unistd.h>
 #include "Thread/Thread.h"
-
+#include "Macro.h"
 int main() {
 
+	ServerCore::getInstance()->run();
 
-	while(true){}
 
+	auto sPt=ServerCore::getInstance();
+	SAFE_RELEASE(sPt);
 	return 0;
-//	ServerCore::getInstance()->run();
 
 }
 

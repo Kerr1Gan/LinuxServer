@@ -4,12 +4,15 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
+../src/Server/DoubleConnector.cpp \
 ../src/Server/ServerCore.cpp 
 
 OBJS += \
+./src/Server/DoubleConnector.o \
 ./src/Server/ServerCore.o 
 
 CPP_DEPS += \
+./src/Server/DoubleConnector.d \
 ./src/Server/ServerCore.d 
 
 

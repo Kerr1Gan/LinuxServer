@@ -9,7 +9,8 @@
 #define SRC_SERVER_SERVERCORE_H_
 #include <iostream>
 using namespace std;
-#include <SocketUtils/SocketHeads.h>
+#include "SocketUtils/Socket.h"
+#include "SocketUtils/ServerSocket.h"
 #include <arpa/inet.h>
 class ServerCore {
 public:
@@ -20,12 +21,11 @@ public:
 
 	virtual ~ServerCore();
 
-	char* getClientIPandPort(int fileDescriptor,int &port);
 
 private:
 	ServerCore();
 
-	int _serverFileDescriptor;
+	ServerSocket* _serverSocket;
 
 	int _clientFileDescriptor;
 

@@ -6,7 +6,7 @@
  */
 
 #include "SocketUtils/Socket.h"
-#include<sys/ioctl.h>
+
 Socket::Socket() {
 	// TODO Auto-generated constructor stub
 	_fileDescriptor=0;
@@ -18,6 +18,7 @@ Socket::Socket() {
 Socket::Socket(int sock):Socket()
 {
 	_fileDescriptor=sock;
+	_ip=SocketUtil::getSocketIPandPort(_fileDescriptor,_port);
 }
 
 Socket::~Socket() {
@@ -60,7 +61,7 @@ bool  Socket::connect(char* ip,int port)
 	_ip=ip;
 	_port=port;
 
-	unsigned long mode=1; //阻塞模式
+	unsigned long mode=1; //非阻塞模式
 	fd_set set;
 	ioctl(_fileDescriptor,FIONBIO,&mode);
 
@@ -69,12 +70,20 @@ bool  Socket::connect(char* ip,int port)
 	int len=sizeof(time);
 	int error=-1;
 
+// in linux sol_sndtimeo is same as connect time out
+//	setsockopt(_fileDescriptor,SOL_SOCKET,SO_SNDTIMEO,&time,len);
+
 	if (::connect(_fileDescriptor, (struct sockaddr*) &_address,
 			sizeof(_address)) == -1)
 	{
+		if(errno==EINPROGRESS)
+		{
+//			fprintf(stderr, "Connect time out.\n");
+		}
 		FD_ZERO(&set);
 		FD_SET(_fileDescriptor,&set);
-		if (select(_fileDescriptor , NULL, &set, NULL, &time) > 0)
+		int result=select(_fileDescriptor+1 , NULL, &set, NULL, &time);
+		if (result > 0)
 		{
 			getsockopt(_fileDescriptor, SOL_SOCKET, SO_ERROR, &error,
 					(socklen_t *) &len);
@@ -82,29 +91,32 @@ bool  Socket::connect(char* ip,int port)
 				isConnect = true;
 			else
 				isConnect = false;
-		} else
+		} else if (result == 0) {
 			isConnect = false;
+			fprintf(stderr, "Connect time out.\n");
+		} else if (result < 0) {
+			isConnect=false;
+			fprintf(stderr, "Connect occurs error.\n");
+		}
 	}
 	else
+	{
 		isConnect=true;
-	mode=0;
-	ioctl(_fileDescriptor,FIONBIO,&mode);//已成功连接设置回阻塞模式
+	}
+
 
 	if (!isConnect)
 	{
-		printf("Connect error: %s(errno: %d)\n", strerror(errno), errno);
+//		printf("Connect error: %s(errno: %d)\n", strerror(errno), errno);
 		shutdown(_fileDescriptor,2);
-//		fprintf(stderr, "Cannot connect the server!n");
+		fprintf(stderr, "Cannot connect the server!\n");
 		return isConnect;
 	}
 
-	cout<<"Connect success."<<endl;
-//	int res=::connect(_fileDescriptor, (struct sockaddr*) &_address, sizeof(_address));
-//	if ( res < 0) {
-//		printf("Connect error: %s(errno: %d)\n", strerror(errno), errno);
-//		return false;
-//	}
+	mode=0;
+	ioctl(_fileDescriptor,FIONBIO,&mode);//已成功连接设置回阻塞模式
 
+	cout<<"Connect success."<<endl;
 	return isConnect;
 }
 
@@ -115,6 +127,7 @@ int Socket::send(char* content,int length)
 	{
 		printf("send msg error: %s(errno: %d)\n", strerror(errno), errno);
 	}
+
 	return res;
 }
 
@@ -124,6 +137,7 @@ int Socket::receive(char* content,int length)
 	if (( res = ::recv(_fileDescriptor, content, length, 0)) == -1) {
 		perror("recv error");
 	}
+
 	return res;
 }
 

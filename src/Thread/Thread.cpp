@@ -6,7 +6,7 @@
  */
 
 #include "Thread.h"
-
+#include "Macro.h"
 Thread::Thread() {
 	// TODO Auto-generated constructor stub
 	_runnable=NULL;
@@ -16,7 +16,8 @@ Thread::Thread() {
 
 Thread::~Thread() {
 	// TODO Auto-generated destructor stub
-
+	if(_arg!=NULL)
+		SAFE_RELEASE(_arg);
 }
 
 //Thread::Thread(CallBack runnable):Thread()
@@ -82,7 +83,7 @@ void Thread::run()
 	}
 	else if(_runnable!=NULL)
 	{
-		int res = pthread_create(&_thread, NULL, _runnable, _arg);
+		int res = pthread_create(&_thread, NULL, _runnable, this);
 		if (res != 0)
 		{
 			cout << "Create thread error.ID " <<_thread << endl;
@@ -95,7 +96,7 @@ void* Thread::run(void* pt)
 	auto owner=(Thread*)pt;
 	if(owner->_bindRunnabe)
 	{
-		owner->_bindRunnabe(owner->_arg);
+		owner->_bindRunnabe(owner);
 	}
 
 	return owner;

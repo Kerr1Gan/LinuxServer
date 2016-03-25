@@ -107,7 +107,7 @@ sockaddr_in SocketUtil::getLocalHost()
 	return address;
 }
 
-char* SocketUtil::getClientIPandPort(int fileDescriptor,int &port)
+char* SocketUtil::getSocketIPandPort(int fileDescriptor,int &port)
 {
 	socklen_t len=sizeof(sockaddr_in	);
 	sockaddr_in addr;

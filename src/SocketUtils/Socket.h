@@ -21,6 +21,8 @@
 #include <string.h>
 #include <time.h>
 #include <sys/ioctl.h>
+#include <unistd.h>
+#include "SocketUtil.h"
 using namespace std;
 
 

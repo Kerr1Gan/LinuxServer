@@ -34,7 +34,7 @@ public:
 
 	static sockaddr_in getLocalHost();
 
-	static char* getClientIPandPort(int fileDescriptor,int &port);
+	static char* getSocketIPandPort(int fileDescriptor,int &port);
 
 	static bool isIPValid(char *ip);
 };

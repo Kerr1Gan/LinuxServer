@@ -6,12 +6,13 @@
  */
 
 #include "SocketUtils/Socket.h"
-
+#include<sys/ioctl.h>
 Socket::Socket() {
 	// TODO Auto-generated constructor stub
 	_fileDescriptor=0;
 	_address={0};
 	_port=0;
+	_connectTimeOut=5;
 }
 
 Socket::Socket(int sock):Socket()
@@ -45,11 +46,10 @@ string  Socket::getIP()
 	return _ip;
 }
 
-int  Socket::connect(char* ip,int port)
+bool  Socket::connect(char* ip,int port)
 {
 	if ((_fileDescriptor = ::socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		printf("create socket error: %s(errno: %d)\n", strerror(errno), errno);
-		exit(0);
 	}
 
 	memset(&_address, 0, sizeof(_address));
@@ -60,12 +60,52 @@ int  Socket::connect(char* ip,int port)
 	_ip=ip;
 	_port=port;
 
-	int res=::connect(_fileDescriptor, (struct sockaddr*) &_address, sizeof(_address));
-	if ( res < 0) {
+	unsigned long mode=1; //阻塞模式
+	fd_set set;
+	ioctl(_fileDescriptor,FIONBIO,&mode);
+
+	bool isConnect=false;
+	timeval time={_connectTimeOut,0};
+	int len=sizeof(time);
+	int error=-1;
+
+	if (::connect(_fileDescriptor, (struct sockaddr*) &_address,
+			sizeof(_address)) == -1)
+	{
+		FD_ZERO(&set);
+		FD_SET(_fileDescriptor,&set);
+		if (select(_fileDescriptor , NULL, &set, NULL, &time) > 0)
+		{
+			getsockopt(_fileDescriptor, SOL_SOCKET, SO_ERROR, &error,
+					(socklen_t *) &len);
+			if (error == 0)
+				isConnect = true;
+			else
+				isConnect = false;
+		} else
+			isConnect = false;
+	}
+	else
+		isConnect=true;
+	mode=0;
+	ioctl(_fileDescriptor,FIONBIO,&mode);//已成功连接设置回阻塞模式
+
+	if (!isConnect)
+	{
 		printf("Connect error: %s(errno: %d)\n", strerror(errno), errno);
+		shutdown(_fileDescriptor,2);
+//		fprintf(stderr, "Cannot connect the server!n");
+		return isConnect;
 	}
 
-	return res;
+	cout<<"Connect success."<<endl;
+//	int res=::connect(_fileDescriptor, (struct sockaddr*) &_address, sizeof(_address));
+//	if ( res < 0) {
+//		printf("Connect error: %s(errno: %d)\n", strerror(errno), errno);
+//		return false;
+//	}
+
+	return isConnect;
 }
 
 int Socket::send(char* content,int length)
@@ -103,19 +143,22 @@ void Socket::setPort(int port)
 	_port=port;
 }
 
-void Socket::setConnectTimeOut(int microSeconds)
+void Socket::setConnectTimeOut(int seconds)
 {
-	timeval val;
-	val.tv_sec=0;
-	val.tv_usec=microSeconds;
-
-	setsockopt(_fileDescriptor,SOL_SOCKET,SO_RCVTIMEO,&val,sizeof(val));
+	_connectTimeOut=seconds;
 }
 
 int Socket::getConnectTimeOut()
 {
-	timeval val;
-	socklen_t len=sizeof(val);
-	getsockopt(_fileDescriptor,SOL_SOCKET,SO_RCVTIMEO,&val,&len);
-	return len;
+	return _connectTimeOut;
 }
+
+//timeval val;
+//val.tv_sec=seconds;
+//val.tv_usec=0;
+//setsockopt(_fileDescriptor,SOL_SOCKET,SO_RCVTIMEO,&val,sizeof(val));
+//
+//timeval val;
+//socklen_t len=sizeof(val);
+//getsockopt(_fileDescriptor,SOL_SOCKET,SO_RCVTIMEO,&val,&len);
+//return val.tv_sec;

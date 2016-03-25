@@ -23,7 +23,7 @@ public:
 
 	void listen(int queueLength);
 
-	int accept();
+	Socket* accept();
 
 private:
 	sockaddr_in _hostAddress;

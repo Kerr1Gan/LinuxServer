@@ -20,7 +20,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/ioctl.h>
 using namespace std;
+
 
 class Socket {
 public:
@@ -34,7 +36,7 @@ public:
 
 	string getIP();
 
-	int connect(char* ip,int port);
+	bool connect(char* ip,int port);
 
 	int send(char* content,int length);
 
@@ -44,7 +46,7 @@ public:
 
 	void close();
 
-	void setConnectTimeOut(int millionSeconds);
+	void setConnectTimeOut(int seconds);
 
 	int getConnectTimeOut();
 protected:
@@ -63,6 +65,8 @@ private:
 	int _port;
 
 	string _ip;
+
+	int _connectTimeOut;
 };
 
 #endif /* SRC_SOCKETUTILS_SOCKET_H_ */

@@ -5,7 +5,7 @@
  *      Author: xiang
  */
 
-#include <ServerSocket.h>
+#include "ServerSocket.h"
 
 ServerSocket::ServerSocket() {
 	// TODO Auto-generated constructor stub
@@ -66,12 +66,15 @@ void ServerSocket::listen(int queueLength)
 	}
 }
 
-int ServerSocket::accept()
+Socket* ServerSocket::accept()
 {
 	int clientFileDescriptor=0;
 	if ((clientFileDescriptor = ::accept(_hostFileDescripotr, (sockaddr*) NULL, NULL)) == -1) {
 		printf("accept socket error: %s(errno: %d)", strerror(errno),errno);
 	}
-	return clientFileDescriptor;
+
+	auto res=new Socket(clientFileDescriptor);
+
+	return res;
 }
 

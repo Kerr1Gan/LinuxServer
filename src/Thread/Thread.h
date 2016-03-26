@@ -44,13 +44,15 @@ public:
 
 	void setRunnable(CallBack runnable);
 
-	void run();
+	void start();
 
 	void cancle();
 
 	bool isLock();
 
 	bool isWait();
+
+	void* join();
 
 	function<void* (void* arg)>  _bindRunnabe;
 
@@ -61,6 +63,10 @@ public:
 	void setArg(void *p);
 
 	void* getArg();
+
+	void setTag(string tag);
+
+	string getTag();
 protected:
 	CallBack getRunnable();
 	static void* run(void*);
@@ -71,6 +77,8 @@ private:
 		CallBack _runnable;
 
 		void* _arg;
+
+		string _tag;
 };
 
 #endif /* SRC_THREAD_THREAD_H_ */

@@ -12,12 +12,13 @@ Thread::Thread() {
 	_runnable=NULL;
 	_thread=0;
 	_arg=NULL;
+	_tag="";
 }
 
 Thread::~Thread() {
 	// TODO Auto-generated destructor stub
-	if(_arg!=NULL)
-		SAFE_RELEASE(_arg);
+//	if(_arg!=NULL)
+//		SAFE_RELEASE(_arg);
 }
 
 //Thread::Thread(CallBack runnable):Thread()
@@ -75,11 +76,16 @@ void Thread::setRunnable(CallBack runnable)
 	_runnable=runnable;
 }
 
-void Thread::run()
+void Thread::start()
 {
-	if(_bindRunnabe)
+	if (_bindRunnabe)
 	{
-		run(this);
+		int res = pthread_create(&_thread, NULL, run, this);
+		if (res != 0)
+		{
+			cout << "Create thread error.ID " << _thread << endl;
+		}
+//		run(this);
 	}
 	else if(_runnable!=NULL)
 	{
@@ -130,4 +136,26 @@ void Thread::setArg(void *p)
 void* Thread::getArg()
 {
 	return _arg;
+}
+
+void* Thread::join()
+{
+	void* res=NULL;
+	int isError=-1;
+	isError=pthread_join(_thread,&res);
+	if (isError != 0)
+	{
+		cout << "Join thread error.ID " <<_thread << endl;
+	}
+	return res;
+}
+
+void Thread::setTag(string tag)
+{
+	_tag=tag;
+}
+
+string Thread::getTag()
+{
+	return _tag;
 }

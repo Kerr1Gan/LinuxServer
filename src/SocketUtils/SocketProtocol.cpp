@@ -9,7 +9,6 @@
 
 SocketProtocol::SocketProtocol() {
 	// TODO Auto-generated constructor stub
-
 }
 
 SocketProtocol::~SocketProtocol() {
@@ -62,6 +61,40 @@ char* SocketProtocol::transferNetWorkStreamToLocalStream(char* networkStream
 }
 
 /*
+ * 	must be release char ptr.
+*/
+char* SocketProtocol::transferNetWorkStreamToLocalStream(Socket* socket,int &length)
+{
+	if(socket==NULL	)
+		return NULL;
+
+	char heads[5];
+	memset(heads,0,5);
+
+	socket->receive(heads,4);
+	int len=SocketUtil::bytesToInt(heads);
+	length=len;
+
+	char* content=new char[len];
+	memset(content,0,len);
+	int size=0;
+	int count=0;
+	while(size<len)
+	{
+		if(len-size<_defaultMaxReceiveBytes)
+		{
+			count=socket->receive(content+size,len-size);
+			size+=count;
+			continue;
+		}
+		count=socket->receive(content+size,_defaultMaxReceiveBytes);
+		size+=count;
+	}
+	return content;
+}
+
+
+/*
  * 	return netWorkStream content length,except \0
  *
  * */
@@ -78,6 +111,32 @@ int SocketProtocol::getNetWorkStreamLength(char *netWorkStream)
 		return SocketUtil::bytesToInt(heads);
 }
 
+
+bool SocketProtocol::sendNetWorkStream(Socket* socket,char* content,int len)
+{
+	int size=0;
+	int count=0;
+	while(size<len)
+	{
+		if(len-size<len)
+		{
+			count=socket->send(content+size,len-size);
+			if(count<=0)
+				return false;
+			size+=count;
+			continue;
+		}
+		count=socket->send(content,len);
+		if(count<=0)
+			return false;
+		size+=count;
+	}
+
+	return true;
+}
+
+
+
 /*
  * 	return netWorkStream full length,except \0
  *
@@ -85,6 +144,11 @@ int SocketProtocol::getNetWorkStreamLength(char *netWorkStream)
 int SocketProtocol::getNetWorkStreamLengthWidthHead(char *netWorkStream)
 {
 		return getNetWorkStreamLength(netWorkStream)+4;
+}
+
+void SocketProtocol::setDefaultMaxReceiveBytes(int count)
+{
+	_defaultMaxReceiveBytes=count;
 }
 
 

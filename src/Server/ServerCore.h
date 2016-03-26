@@ -11,11 +11,7 @@
 using namespace std;
 #include "SocketUtils/Socket.h"
 #include "SocketUtils/ServerSocket.h"
-#include "Server/DoubleConnector.h"
 #include <arpa/inet.h>
-#include <vector>
-#include "Thread/Thread.h"
-#include <fstream>
 class ServerCore {
 public:
 
@@ -25,16 +21,13 @@ public:
 
 	virtual ~ServerCore();
 
-	DoubleConnector _doubleConnector;
 
-	ofstream *_ofstream;
 private:
 	ServerCore();
 
 	ServerSocket* _serverSocket;
 
-	vector<Thread> *_threadVec;
-
+	int _clientFileDescriptor;
 
 	sockaddr_in _serverAddress;
 

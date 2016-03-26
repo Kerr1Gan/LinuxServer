@@ -10,10 +10,10 @@
 #include <iostream>
 #include <stdlib.h>
 #include <string>
-#include "SocketUtil.h"
-#include "SocketUtils/Socket.h"
+#include "SocketUtil.h""
 using namespace std;
-#define DEFAULT_MAX_RECEIVE_BYTES  1024*10
+
+
 class SocketProtocol {
 public:
 	SocketProtocol();
@@ -22,20 +22,12 @@ public:
 
 	static char* transferLocalStreamToNetWorkStream(char* localStream,int &length);
 
+
 	static char* transferNetWorkStreamToLocalStream(char* networkStream,int length);
-
-	static char* transferNetWorkStreamToLocalStream(Socket* socket,int &len);
-
-	static bool sendNetWorkStream(Socket* socket,char* content,int len);
 
 	static int getNetWorkStreamLength(char *netWorkStream);
 
 	static int getNetWorkStreamLengthWidthHead(char *netWorkStream);
-
-	static void setDefaultMaxReceiveBytes(int count);
-
 };
-
-static int _defaultMaxReceiveBytes=DEFAULT_MAX_RECEIVE_BYTES;
 
 #endif /* SRC_SOCKETUTILS_SOCKETPROTOCOL_H_ */

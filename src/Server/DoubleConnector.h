@@ -22,20 +22,9 @@ public:
 
 	Socket* getClient();
 
-	bool isHostReady();
-
-	bool isClientReady();
-
-	void hostReady(bool tmp);
-
-	void clientReady(bool tmp);
-
 private:
 	Socket* _host;
 	Socket* _client;
-
-	bool _isHostReady;
-	bool _isClientReady;
 
 };
 

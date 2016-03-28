@@ -15,8 +15,19 @@ using namespace std;
 #include "Macro.h"
 int main() {
 
-	ServerCore::getInstance()->run();
+	Thread* timeT = new Thread([](void*)->void*
+	{
+		while(true)
+		{
+			cout<<"Service:I'm alive. "<<ServerCore::getInstance()->getCurrentTime()<<endl;
+			sleep(60*5);
+		}
+		return NULL;
+	});
 
+	timeT->start();
+
+	ServerCore::getInstance()->run();
 
 	auto sPt=ServerCore::getInstance();
 	SAFE_RELEASE(sPt);

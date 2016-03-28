@@ -16,6 +16,8 @@ using namespace std;
 #include <vector>
 #include "Thread/Thread.h"
 #include <fstream>
+#include <time.h>
+#include <unistd.h>
 class ServerCore {
 public:
 
@@ -28,6 +30,8 @@ public:
 	DoubleConnector _doubleConnector;
 
 	ofstream *_ofstream;
+
+	char * getCurrentTime();
 private:
 	ServerCore();
 
@@ -37,7 +41,6 @@ private:
 
 
 	sockaddr_in _serverAddress;
-
 };
 
 static ServerCore *_serverCoreInstance=NULL;

@@ -20,5 +20,4 @@
 }\
 
 
-
 #endif /* SRC_MACRO_H_ */

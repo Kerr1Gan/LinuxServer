@@ -8,6 +8,7 @@
 #include <Server/ServerCore.h>
 #include "Macro.h"
 #include "Thread/Thread.h"
+#include <signal.h>
 ServerCore::ServerCore() {
 	// TODO Auto-generated constructor stub
 
@@ -25,6 +26,40 @@ ServerCore::~ServerCore() {
 	SAFE_RELEASE(_threadVec);
 	SAFE_RELEASE(_ofstream);
 }
+
+void signal_catch(int signo);
+void SetupSignal(void)
+{
+	sigset_t signal_mask;
+	sigemptyset (&signal_mask);
+	sigaddset (&signal_mask, SIGPIPE);
+	int rc = pthread_sigmask (SIG_BLOCK, &signal_mask, NULL);
+	if (rc != 0) {
+	printf("block sigpipe error/n");
+	}
+//  struct sigaction act;
+//
+//  act.sa_handler = signal_catch;
+//  act.sa_flags   = 0;
+//  sigemptyset(&act.sa_mask);
+//  sigaction(SIGHUP,&act,NULL);
+//  sigaction(SIGINT,&act,NULL);
+//  sigaction(SIGQUIT,&act,NULL);
+//  sigaction(SIGILL,&act,NULL);
+//  sigaction(SIGABRT,&act,NULL);
+//  sigaction(SIGIOT,&act,NULL);
+//  sigaction(SIGBUS,&act,NULL);
+//  sigaction(SIGFPE,&act,NULL);
+//  sigaction(SIGTERM,&act,NULL);
+}
+
+void signal_catch(int signo)
+{
+	cout<<"Broken Pipe "<<ServerCore::getInstance()->getCurrentTime()<<endl;
+//  exit(-1);
+}
+
+
 
 ServerCore* ServerCore::getInstance()
 {
@@ -45,12 +80,13 @@ void*  threadRunnable (void * arg)
 	auto host=(Socket*)thread->getArg();
 //	auto client=ServerCore::getInstance()->_doubleConnector.getClient();
 
+	SetupSignal();
 	auto hostRecThread=new Thread(receiveThread);
 
 	hostRecThread->setArg(host);
 	if(thread->getTag()=="host")
 		hostRecThread->setTag("host");
-	else
+	else if(thread->getTag()=="client")
 		hostRecThread->setTag("client");
 	hostRecThread->start();
 	hostRecThread->join();
@@ -98,7 +134,9 @@ void*  threadRunnable (void * arg)
 //	}
 
 	cout<<thread->getTag()<<"方断开连接!"<<endl;
+
 	(*ServerCore::getInstance()->_ofstream)<<thread->getTag()<<"方断开连接!"<<endl;
+
 	SAFE_RELEASE(thread);
 	return NULL;
 }
@@ -119,6 +157,7 @@ void* receiveThread(void* arg)
 	auto sock=(Socket*)th->getArg();
 	Socket* target;
 	string tag=th->getTag();
+
 	if(memcmp(th->getTag().c_str(),"host",strlen("host"))==0)
 	{
 		target=ServerCore::getInstance()->_doubleConnector.getClient();
@@ -131,11 +170,13 @@ void* receiveThread(void* arg)
 	if(target!=NULL)
 		ip=target->getIP();
 
+
 	while(true)
 	{
 		int len;
-		char *content;
-		content=SocketProtocol::transferNetWorkStreamToLocalStream(sock,len);
+		char *content=NULL;
+
+		content=SocketProtocol::getNetWorkStreamToLocalStream(sock,len);
 		if(len<=0)
 		{
 			(*ServerCore::getInstance()->_ofstream)<<"连接断开 "<<th->getTag()<<" "
@@ -152,8 +193,10 @@ void* receiveThread(void* arg)
 			break;
 		}
 
-		cout<<"收到"<<sock->getIP()<<" "<<len<<"字节  ";
-		(*ServerCore::getInstance()->_ofstream)<<"收到"<<sock->getIP()<<" "<<len<<"字节  ";
+		if(DEBUG)
+		cout<<tag<<" 收到"<<sock->getIP()<<" "<<len<<"字节  ";
+		if(DEBUG)
+		(*ServerCore::getInstance()->_ofstream)<<tag<<" 收到"<<sock->getIP()<<" "<<len<<"字节  ";
 
 
 		char* temp=new char[len+1];
@@ -172,17 +215,27 @@ void* receiveThread(void* arg)
 			target=ServerCore::getInstance()->_doubleConnector.getHost();
 		}
 
+
 		if(target==NULL || len<=0 || !SocketProtocol::sendNetWorkStream(target,msg,len))
 		{
-			(*ServerCore::getInstance()->_ofstream)<<"连接断开"<<ip<<endl;
-			cout<<"连接断开"<<ip<<endl;
+			if(DEBUG)
+			(*ServerCore::getInstance()->_ofstream)<<"host正在等待client"<<ip<<endl;
+			if(DEBUG)
+			cout<<"host正在等待client"<<ip<<endl;
+			if (tag == "host") {
+				ServerCore::getInstance()->_doubleConnector.setClient(NULL);
+			} else if (tag == "client") {
+				ServerCore::getInstance()->_doubleConnector.setHost(NULL);
+			}
 			SAFE_RELEASE(content);
 			SAFE_RELEASE(temp);
 			SAFE_RELEASE(msg);
-			break;
+			continue;
 		}
-		cout<<"发送给"<<target->getIP()<<" "<<len<<"字节"<<endl;
-		(*ServerCore::getInstance()->_ofstream)<<"发送给"
+		if(DEBUG)
+		cout<<tag<<" 发送给"<<target->getIP()<<" "<<len<<"字节"<<endl;
+		if(DEBUG && DEEPDEBUG)
+		(*ServerCore::getInstance()->_ofstream)<<tag<<" 发送给"
 				<<target->getIP()<<" "<<len<<"字节"<<"  内容:"<<temp<<endl;
 
 		SAFE_RELEASE(temp);
@@ -216,12 +269,23 @@ void ServerCore::run()
 
 		cout<<"ip "<<sock->getIP()<<" port "<<sock->getPort()<<endl;
 
+		if(sock->getIP()=="184.105.138.69")
+		{
+			cout<<"有毒IP连接强制断开"<<endl;
+			(*ServerCore::getInstance()->_ofstream)<<"有毒IP连接强制断开"<<endl;
+			sock->close();
+			SAFE_RELEASE(sock);
+			run();
+			return;
+		}
+
 		_doubleConnector.setHost(sock);
 
 		cout<<"宿主已连接! "<<"ip "<<sock->getIP()<<endl;
 		(*ServerCore::getInstance()->_ofstream)<<"宿主已连接! "<<"ip "<<sock->getIP()<<endl;
 
 
+		SetupSignal();
 		auto thread=new Thread();
 
 		thread->setRunnable(threadRunnable);
@@ -251,8 +315,10 @@ void ServerCore::run()
 		_doubleConnector.setClient(client);
 
 		cout<<"客户已连接! ip "<<client->getIP()<<endl;
-		(*ServerCore::getInstance()->_ofstream)<<"客户已连接! "<<"ip "<<sock->getIP()<<endl;
+		(*ServerCore::getInstance()->_ofstream)<<"客户已连接! "<<"ip "
+				<<sock->getIP()<<endl;
 
+		SetupSignal();
 		auto thread1=new Thread();
 
 		thread1->setRunnable(threadRunnable);

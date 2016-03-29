@@ -18,6 +18,9 @@ using namespace std;
 #include <fstream>
 #include <time.h>
 #include <unistd.h>
+
+#define DEBUG 0
+#define DEEPDEBUG 0
 class ServerCore {
 public:
 

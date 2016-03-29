@@ -20,7 +20,7 @@ SocketProtocol::~SocketProtocol() {
 */
 char* SocketProtocol::transferLocalStreamToNetWorkStream(char* localStream,int &length)
 {
-	length=strlen(localStream);
+//	length=strlen(localStream);
 
 	char bytes[5];
 	memset(bytes,0,5);
@@ -63,7 +63,7 @@ char* SocketProtocol::transferNetWorkStreamToLocalStream(char* networkStream
 /*
  * 	must be release char ptr.
 */
-char* SocketProtocol::transferNetWorkStreamToLocalStream(Socket* socket,int &length)
+char* SocketProtocol::getNetWorkStreamToLocalStream(Socket* socket,int &length)
 {
 	if(socket==NULL	)
 		return NULL;
@@ -71,9 +71,18 @@ char* SocketProtocol::transferNetWorkStreamToLocalStream(Socket* socket,int &len
 	char heads[5];
 	memset(heads,0,5);
 
-	socket->receive(heads,4);
+	if(socket->receive(heads,4)<=0)
+	{
+		length=-1;
+		return NULL;
+	}
 	int len=SocketUtil::bytesToInt(heads);
-	length=len;
+	if(len<0 || len>10*1024*1024)
+	{
+		cout<<"报文头部错误，可能是有毒IP入侵。"<<socket->getIP()<<endl;
+		length=-1;
+		return NULL;
+	}
 
 	char* content=new char[len];
 	memset(content,0,len);
@@ -84,12 +93,23 @@ char* SocketProtocol::transferNetWorkStreamToLocalStream(Socket* socket,int &len
 		if(len-size<_defaultMaxReceiveBytes)
 		{
 			count=socket->receive(content+size,len-size);
+			if(count<=0)
+			{
+				length=-1;
+				return NULL;
+			}
 			size+=count;
 			continue;
 		}
 		count=socket->receive(content+size,_defaultMaxReceiveBytes);
+		if(count<=0)
+		{
+			length=-1;
+			return NULL;
+		}
 		size+=count;
 	}
+	length=len;
 	return content;
 }
 
@@ -112,29 +132,35 @@ int SocketProtocol::getNetWorkStreamLength(char *netWorkStream)
 }
 
 
-bool SocketProtocol::sendNetWorkStream(Socket* socket,char* content,int len)
+bool SocketProtocol::sendNetWorkStream(Socket* socket,char* content,int &len)
 {
 	int size=0;
 	int count=0;
 	while(size<len)
 	{
-		if(len-size<len)
+		signal(SIGPIPE, SIG_IGN);
+		if(len-size<_defaultMaxSendBytes)
 		{
 			count=socket->send(content+size,len-size);
-			if(count<=0)
+			if (count <= 0)
+			{
+				len=-1;
 				return false;
+			}
 			size+=count;
 			continue;
 		}
-		count=socket->send(content,len);
-		if(count<=0)
+		count=socket->send(content+size,_defaultMaxSendBytes);
+		if (count <= 0)
+		{
+			len=-1;
 			return false;
+		}
 		size+=count;
 	}
-
+	len=size;
 	return true;
 }
-
 
 
 /*
@@ -151,4 +177,8 @@ void SocketProtocol::setDefaultMaxReceiveBytes(int count)
 	_defaultMaxReceiveBytes=count;
 }
 
+void SocketProtocol::setDefaultMaxSendBytes(int count)
+{
+	_defaultMaxSendBytes=count;
+}
 

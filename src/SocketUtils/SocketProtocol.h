@@ -26,7 +26,7 @@ public:
 
 	static char* transferNetWorkStreamToLocalStream(char* networkStream,int length);
 
-	static char* getNetWorkStreamToLocalStream(Socket* socket,int &len);
+	static char* readNetWorkStreamToLocalStream(Socket* socket,int &len);
 
 	static bool sendNetWorkStream(Socket* socket,char* content,int &len);
 
@@ -37,6 +37,10 @@ public:
 	static void setDefaultMaxReceiveBytes(int count);
 
 	static void setDefaultMaxSendBytes(int count);
+
+	static char* receiveNetWorkStreamExactly(Socket* sock,int& length);
+
+	static int sendNetWorkStreamExactly(Socket* sock,char* content,int length);
 };
 
 static int _defaultMaxReceiveBytes=DEFAULT_MAX_RECEIVE_BYTES;

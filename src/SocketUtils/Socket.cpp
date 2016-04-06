@@ -167,6 +167,28 @@ int Socket::getConnectTimeOut()
 	return _connectTimeOut;
 }
 
+void Socket::setReciveTimeOut(int timeOut)
+{
+	timeval val;
+	val.tv_sec=timeOut;
+	val.tv_usec=0;
+	if(setsockopt(_fileDescriptor,SOL_SOCKET,SO_RCVTIMEO,&val,sizeof(val))==-1)
+	{
+		printf("setReciveTimeOut error: %s(errno: %d)\n", strerror(errno), errno);
+	}
+}
+
+void Socket::setSendTimeOut(int timeOut)
+{
+	timeval val;
+	val.tv_sec=timeOut;
+	val.tv_usec=0;
+	if(setsockopt(_fileDescriptor,SOL_SOCKET,SO_SNDTIMEO,&val,sizeof(val))==-1)
+	{
+		printf("setSendTimeOut error: %s(errno: %d)\n", strerror(errno), errno);
+	}
+}
+
 //timeval val;
 //val.tv_sec=seconds;
 //val.tv_usec=0;

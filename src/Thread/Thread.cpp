@@ -13,12 +13,14 @@ Thread::Thread() {
 	_thread=0;
 	_arg=NULL;
 	_tag="";
+	_needDetach=true;
+	_returnValue=NULL;
 }
 
 Thread::~Thread() {
 	// TODO Auto-generated destructor stub
-//	if(_arg!=NULL)
-//		SAFE_RELEASE(_arg);
+	if(_needDetach)
+		pthread_detach(_thread);
 }
 
 //Thread::Thread(CallBack runnable):Thread()
@@ -78,6 +80,9 @@ void Thread::setRunnable(CallBack runnable)
 
 void Thread::start()
 {
+//	pthread_attr_t attr;
+//	pthread_attr_init(&attr);
+//	pthread_attr_setdetachstate(&attr,1);
 	if (_bindRunnabe)
 	{
 		int res = pthread_create(&_thread, NULL, run, this);
@@ -89,7 +94,7 @@ void Thread::start()
 	}
 	else if(_runnable!=NULL)
 	{
-		int res = pthread_create(&_thread, NULL, _runnable, this);
+		int res = pthread_create(&_thread,  NULL, _runnable, this);
 		if (res != 0)
 		{
 			cout << "Create thread error.ID " <<_thread << endl;
@@ -142,6 +147,7 @@ void* Thread::join()
 {
 	void* res=NULL;
 	int isError=-1;
+	_needDetach=false;
 	isError=pthread_join(_thread,&res);
 	if (isError != 0)
 	{
@@ -158,4 +164,9 @@ void Thread::setTag(string tag)
 string Thread::getTag()
 {
 	return _tag;
+}
+
+void Thread::exit(void* returnValue)
+{
+	pthread_exit(returnValue);
 }

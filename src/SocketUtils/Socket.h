@@ -51,6 +51,10 @@ public:
 	void setConnectTimeOut(int seconds);
 
 	int getConnectTimeOut();
+
+	void setReciveTimeOut(int timeOut);
+
+	void setSendTimeOut(int timeOut);
 protected:
 
 	sockaddr_in &getAddress();
@@ -58,9 +62,9 @@ protected:
 	void setIP(char *ip);
 
 	void setPort(int port);
-private:
 
 	int _fileDescriptor;
+private:
 
 	sockaddr_in _address;
 

@@ -12,10 +12,19 @@
 
 #define SAFE_RELEASE(pt)  \
 {\
-	if(pt!=NULL)\
+	if((pt)!=NULL)\
 	{\
-		delete pt;\
-		pt=NULL; \
+		delete (pt);\
+		(pt)=NULL; \
+	}\
+}\
+
+#define SAFE_RELEASE_ARRAY(pt) \
+{\
+	if((pt)!=NULL)\
+	{\
+		delete[] (pt);\
+		(pt)=NULL;\
 	}\
 }\
 

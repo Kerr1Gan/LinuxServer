@@ -17,6 +17,7 @@ ServerCore::ServerCore() {
 	memset(&_doubleConnector,0,sizeof(_doubleConnector));
 	_serverSocket=NULL;
 	_ofstream=NULL;
+	_errorTimeCount=0;
 }
 
 ServerCore::~ServerCore() {
@@ -35,7 +36,7 @@ void SetupSignal(void)
 	sigaddset (&signal_mask, SIGPIPE);
 	int rc = pthread_sigmask (SIG_BLOCK, &signal_mask, NULL);
 	if (rc != 0) {
-	printf("block sigpipe error/n");
+	printf("block sigpipe error\n");
 	}
 //  struct sigaction act;
 //
@@ -132,11 +133,18 @@ void*  threadRunnable (void * arg)
 //		SAFE_RELEASE(transMsg);
 //		SAFE_RELEASE(content);
 //	}
+	if(thread->getTag()=="host")
+		ServerCore::getInstance()->_doubleConnector.setHost(NULL);
+	else if(thread->getTag()=="client")
+		ServerCore::getInstance()->_doubleConnector.setClient(NULL);
 
 	cout<<thread->getTag()<<"方断开连接!"<<endl;
 
 	(*ServerCore::getInstance()->_ofstream)<<thread->getTag()<<"方断开连接!"<<endl;
 
+	if(ServerCore::getInstance()->_doubleConnector.getHost()==NULL
+			&&ServerCore::getInstance()->_doubleConnector.getClient()==NULL)
+		cout<<"当前连接没有任何连接"<<endl;
 	SAFE_RELEASE(thread);
 	return NULL;
 }
@@ -151,13 +159,14 @@ void* sendThread(void* arg)
 	return NULL;
 }
 
+Mutex _mutex;
 void* receiveThread(void* arg)
 {
 	auto th=(Thread*)arg;
 	auto sock=(Socket*)th->getArg();
 	Socket* target;
 	string tag=th->getTag();
-
+	TimerThread* timer=NULL;
 	if(memcmp(th->getTag().c_str(),"host",strlen("host"))==0)
 	{
 		target=ServerCore::getInstance()->_doubleConnector.getClient();
@@ -170,19 +179,70 @@ void* receiveThread(void* arg)
 	if(target!=NULL)
 		ip=target->getIP();
 
-
 	while(true)
 	{
 		int len;
 		char *content=NULL;
 
-		content=SocketProtocol::getNetWorkStreamToLocalStream(sock,len);
+		content=SocketProtocol::readNetWorkStreamToLocalStream(sock,len);
 		if(len<=0)
 		{
+			if(len==-2)
+			{
+				char *safeContent=new char[1024*1024];
+				memset(safeContent,0,1024*1024);
+				memcpy(safeContent,content,4);
+				(*ServerCore::getInstance()->_ofstream)<<th->getTag()
+										<<"收到有毒IP报文内容 "
+										<<ServerCore::getInstance()->getCurrentTime()<<endl;
+				int count=0;
+				int size=0;
+
+				timer = new TimerThread([&](void* arg)->void*
+				{
+					auto thread=(TimerThread*)arg;
+					auto sock=(Socket*)thread->getArg();
+					sleep(5);
+					cout<<"Http强制关闭"<<endl;
+					_mutex.lock();
+					if(!thread->_isClose)
+					{
+						thread->_isClose=true;
+						cout<<"release socket force"<<endl;
+						sock->close();
+//						SAFE_RELEASE(sock);
+					}
+//					SAFE_RELEASE(thread);
+					_mutex.unLock();
+					return NULL;
+				});
+				timer->setArg(sock);
+				timer->start();
+				while(true)
+				{
+					if (size == 0)
+					{
+						count = sock->receive(safeContent + 4, 6);
+						size+=count+4;
+					}
+					else
+					{
+						count=sock->receive(safeContent+size,10);
+						size+=count;
+					}
+					if(count<=0)
+						break;
+				}
+
+				(*ServerCore::getInstance()->_ofstream)<<safeContent;
+				SAFE_RELEASE_ARRAY(safeContent);
+			}
+			else
+				SAFE_RELEASE_ARRAY(content);
+
 			(*ServerCore::getInstance()->_ofstream)<<"连接断开 "<<th->getTag()<<" "
 					<<sock->getIP()<<endl;
 			cout<<"连接断开"<<th->getTag()<<endl;
-			SAFE_RELEASE(content);
 			if(tag=="host")
 			{
 				ServerCore::getInstance()->_doubleConnector.setHost(NULL);
@@ -192,6 +252,7 @@ void* receiveThread(void* arg)
 			}
 			break;
 		}
+		ServerCore::getInstance()->_errorTimeCount=0;
 
 		if(DEBUG)
 		cout<<tag<<" 收到"<<sock->getIP()<<" "<<len<<"字节  ";
@@ -218,34 +279,59 @@ void* receiveThread(void* arg)
 
 		if(target==NULL || len<=0 || !SocketProtocol::sendNetWorkStream(target,msg,len))
 		{
-			if(DEBUG)
-			(*ServerCore::getInstance()->_ofstream)<<"host正在等待client"<<ip<<endl;
-			if(DEBUG)
-			cout<<"host正在等待client"<<ip<<endl;
 			if (tag == "host") {
 				ServerCore::getInstance()->_doubleConnector.setClient(NULL);
+				cout<<"client is empty."<<endl;
 			} else if (tag == "client") {
 				ServerCore::getInstance()->_doubleConnector.setHost(NULL);
+				cout<<"host is empty."<<endl;
 			}
-			SAFE_RELEASE(content);
-			SAFE_RELEASE(temp);
-			SAFE_RELEASE(msg);
+			SAFE_RELEASE_ARRAY(content);
+			SAFE_RELEASE_ARRAY(temp);
+			SAFE_RELEASE_ARRAY(msg);
 			continue;
 		}
+		ServerCore::getInstance()->_errorTimeCount=0;
 		if(DEBUG)
 		cout<<tag<<" 发送给"<<target->getIP()<<" "<<len<<"字节"<<endl;
 		if(DEBUG && DEEPDEBUG)
 		(*ServerCore::getInstance()->_ofstream)<<tag<<" 发送给"
 				<<target->getIP()<<" "<<len<<"字节"<<"  内容:"<<temp<<endl;
 
-		SAFE_RELEASE(temp);
-		SAFE_RELEASE(msg);
-		SAFE_RELEASE(content);
+		SAFE_RELEASE_ARRAY(temp);
+		SAFE_RELEASE_ARRAY(msg);
+		SAFE_RELEASE_ARRAY(content);
 	}
 
-	sock->close();
+	_mutex.lock();
+	if(timer==NULL)
+	{
+		sock->close();
+	}
+	else if(!timer->_isClose)
+	{
+		cout<<"release socket normal"<<endl;
+		timer->_isClose=true;
+		if(timer!=NULL)
+		{
+			timer->cancle();
+		}
+		sock->close();
+	}
 	SAFE_RELEASE(sock);
 	SAFE_RELEASE(th);
+	_mutex.unLock();
+	if(tag=="host")
+	{
+		ServerCore::getInstance()->_doubleConnector.setHost(NULL);
+		cout<<"host is empty."<<endl;
+	}
+	else if(tag=="client")
+	{
+		ServerCore::getInstance()->_doubleConnector.setClient(NULL);
+		cout<<"client is empty."<<endl;
+	}
+
 	return NULL;
 }
 
@@ -256,8 +342,8 @@ void ServerCore::run()
 	{
 		_serverSocket = new ServerSocket();
 
-		_serverSocket->bind("23.83.238.180",8000);
-//		_serverSocket->bind("127.0.0.1",8000);
+//		_serverSocket->bind("23.83.238.180",8000);
+		_serverSocket->bind("127.0.0.1",8000);
 		_serverSocket->listen(10);
 
 		_ofstream=new ofstream("log.lg");
@@ -265,69 +351,107 @@ void ServerCore::run()
 
 	while(true)
 	{
-		auto sock=_serverSocket->accept();
-
-		cout<<"ip "<<sock->getIP()<<" port "<<sock->getPort()<<endl;
-
-		if(sock->getIP()=="184.105.138.69")
+		if(_doubleConnector.getClient()!=NULL &&
+				_doubleConnector.getHost()!=NULL)
 		{
-			cout<<"有毒IP连接强制断开"<<endl;
-			(*ServerCore::getInstance()->_ofstream)<<"有毒IP连接强制断开"<<endl;
-			sock->close();
-			SAFE_RELEASE(sock);
-			run();
-			return;
+			(*ServerCore::getInstance()->_ofstream)<<
+					"Queue is full sleep one seconds."<<endl;
+			if(_errorTimeCount>=60)
+			{
+				cout<<"双方连接超时强行关闭."<<endl;
+
+				(*_ofstream)<<"双方连接超时强行关闭."<<endl;
+
+				_doubleConnector.getHost()->close();
+				_doubleConnector.getClient()->close();
+				_errorTimeCount=0;
+			}
+			sleep(1);
+			_errorTimeCount+=1;
+			continue;
+		}
+		Socket* sock=NULL;
+		if (_doubleConnector.getHost() == NULL)
+		{
+			sock = _serverSocket->accept();
+//			sock->setReciveTimeOut(60);
+
+			cout << "ip " << sock->getIP() << " port " << sock->getPort()
+					<< endl;
+
+			_doubleConnector.setHost(sock);
+
+			cout << "宿主已连接! " << "ip " << sock->getIP() << endl;
+			(*ServerCore::getInstance()->_ofstream) << "宿主已连接! " << "ip "
+					<< sock->getIP() << endl;
+
+			SetupSignal();
+			auto thread = new Thread();
+
+			thread->setRunnable(threadRunnable);
+
+			thread->setArg(sock);
+
+			thread->setTag("host");
+
+			thread->start();
+		}
+		else
+		{
+			sock=_doubleConnector.getHost();
 		}
 
-		_doubleConnector.setHost(sock);
+		Socket* client=NULL;
 
-		cout<<"宿主已连接! "<<"ip "<<sock->getIP()<<endl;
-		(*ServerCore::getInstance()->_ofstream)<<"宿主已连接! "<<"ip "<<sock->getIP()<<endl;
-
-
-		SetupSignal();
-		auto thread=new Thread();
-
-		thread->setRunnable(threadRunnable);
-
-		thread->setArg(sock);
-
-		thread->setTag("host");
-
-		thread->start();
-
-
-
-		auto client=_serverSocket->accept();
-
-		cout<<"ip "<<sock->getIP()<<" port "<<sock->getPort()<<endl;
-
-		if(_doubleConnector.getHost()==NULL)
+		if(_doubleConnector.getClient()==NULL)
 		{
-			cout<<"没有宿主断开客户连接."<<endl;
-			(*ServerCore::getInstance()->_ofstream)<<"没有宿主断开客户连接."<<endl;
-			client->close();
-			SAFE_RELEASE(client);
-			ServerCore::run();
-			return;
+			client = _serverSocket->accept();
+//			client->setReciveTimeOut(60);
+
+			cout << "ip " << client->getIP() << " port " << sock->getPort()
+					<< endl;
+				if(_doubleConnector.getHost()==NULL)
+				{
+					cout<<"没有宿主,客户转为宿主."<<endl;
+					(*ServerCore::getInstance()->_ofstream)<<"没有宿主,客户转为宿主."<<endl;
+
+					_doubleConnector.setHost(client);
+					cout << "宿主已连接! " << "ip " << client->getIP() << endl;
+					(*ServerCore::getInstance()->_ofstream) << "宿主已连接! " << "ip "
+							<< client->getIP() << endl;
+
+					SetupSignal();
+					auto thread = new Thread();
+
+					thread->setRunnable(threadRunnable);
+
+					thread->setArg(client);
+
+					thread->setTag("host");
+
+					thread->start();
+
+					ServerCore::run();
+					return;
+				}
+
+				_doubleConnector.setClient(client);
+
+				cout<<"客户已连接! ip "<<client->getIP()<<endl;
+				(*ServerCore::getInstance()->_ofstream)<<"客户已连接! "<<"ip "
+						<<sock->getIP()<<endl;
+
+				SetupSignal();
+				auto thread1=new Thread();
+
+				thread1->setRunnable(threadRunnable);
+
+				thread1->setArg(client);
+
+				thread1->setTag("client");
+
+				thread1->start();
 		}
-
-		_doubleConnector.setClient(client);
-
-		cout<<"客户已连接! ip "<<client->getIP()<<endl;
-		(*ServerCore::getInstance()->_ofstream)<<"客户已连接! "<<"ip "
-				<<sock->getIP()<<endl;
-
-		SetupSignal();
-		auto thread1=new Thread();
-
-		thread1->setRunnable(threadRunnable);
-
-		thread1->setArg(client);
-
-		thread1->setTag("client");
-
-		thread1->start();
 
 	}
 	(*ServerCore::getInstance()->_ofstream).close();
@@ -340,3 +464,7 @@ char* ServerCore::getCurrentTime()
 		return asctime(localtime(&timep));
 }
 
+ServerSocket* ServerCore::getServerSocket()
+{
+	return _serverSocket;
+}

@@ -35,6 +35,10 @@ public:
 	ofstream *_ofstream;
 
 	char * getCurrentTime();
+
+	ServerSocket* getServerSocket();
+
+	int _errorTimeCount;
 private:
 	ServerCore();
 
@@ -42,10 +46,26 @@ private:
 
 	vector<Thread> *_threadVec;
 
-
 	sockaddr_in _serverAddress;
 };
 
 static ServerCore *_serverCoreInstance=NULL;
+
+class TimerThread:public Thread
+{
+public:
+	bool _isClose;
+	TimerThread():Thread()
+	{
+		_isClose=false;
+		_count=0;
+	}
+	TimerThread(function<void* (void* arg)> runnable):Thread(runnable)
+	{
+		_isClose=false;
+		_count=0;
+	}
+	int _count;
+};
 
 #endif /* SRC_SERVER_SERVERCORE_H_ */

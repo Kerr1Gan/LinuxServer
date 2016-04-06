@@ -63,7 +63,7 @@ char* SocketProtocol::transferNetWorkStreamToLocalStream(char* networkStream
 /*
  * 	must be release char ptr.
 */
-char* SocketProtocol::getNetWorkStreamToLocalStream(Socket* socket,int &length)
+char* SocketProtocol::readNetWorkStreamToLocalStream(Socket* socket,int &length)
 {
 	if(socket==NULL	)
 		return NULL;
@@ -80,8 +80,8 @@ char* SocketProtocol::getNetWorkStreamToLocalStream(Socket* socket,int &length)
 	if(len<0 || len>10*1024*1024)
 	{
 		cout<<"报文头部错误，可能是有毒IP入侵。"<<socket->getIP()<<endl;
-		length=-1;
-		return NULL;
+		length=-2;
+		return heads;
 	}
 
 	char* content=new char[len];
@@ -136,9 +136,9 @@ bool SocketProtocol::sendNetWorkStream(Socket* socket,char* content,int &len)
 {
 	int size=0;
 	int count=0;
+	signal(SIGPIPE, SIG_IGN);
 	while(size<len)
 	{
-		signal(SIGPIPE, SIG_IGN);
 		if(len-size<_defaultMaxSendBytes)
 		{
 			count=socket->send(content+size,len-size);
@@ -182,3 +182,61 @@ void SocketProtocol::setDefaultMaxSendBytes(int count)
 	_defaultMaxSendBytes=count;
 }
 
+/*
+ * need to release char ptr.
+*/
+char* SocketProtocol::receiveNetWorkStreamExactly(Socket* sock,int& length)
+{
+	int size=0;
+	int count=0;
+	char *content=new char[length];
+	memset(content,0,length);
+	while(size<length)
+	{
+		if(length-size<_defaultMaxReceiveBytes)
+		{
+			count=sock->receive(content+size,length-size);
+			if(count<=0)
+			{
+				length=-1;
+				return content;
+			}
+			size+=count;
+			continue;
+		}
+		count=sock->receive(content+size,_defaultMaxReceiveBytes);
+		if (count <= 0)
+		{
+			length = -1;
+			return content;
+		}
+		size+=count;
+	}
+	return content;
+}
+
+int SocketProtocol::sendNetWorkStreamExactly(Socket* sock,char* content,int length)
+{
+	int size=0;
+	int count=0;
+	while(size<length)
+	{
+		if(length-size<_defaultMaxReceiveBytes)
+		{
+			count=sock->send(content+size,length-size);
+			if(count<=0)
+			{
+				return size;
+			}
+			size+=count;
+			continue;
+		}
+		count=sock->send(content+size,_defaultMaxSendBytes);
+		if (count <= 0)
+		{
+			return size;
+		}
+		size+=count;
+	}
+	return size;
+}

@@ -67,11 +67,14 @@ public:
 	void setTag(string tag);
 
 	string getTag();
+
+	void exit(void* returnValue);
 protected:
 	CallBack getRunnable();
 	static void* run(void*);
 private:
 		Mutex _mutex;
+
 		pthread_t _thread;
 
 		CallBack _runnable;
@@ -79,6 +82,10 @@ private:
 		void* _arg;
 
 		string _tag;
+
+		bool _needDetach;
+
+		void* _returnValue;
 };
 
 #endif /* SRC_THREAD_THREAD_H_ */

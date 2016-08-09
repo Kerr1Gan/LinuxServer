@@ -1,3 +1,3 @@
 ### LinuxServer
 
-In Linux pack thread socket in C++ code.
+In Linux wrap thread socket in C++ code.
